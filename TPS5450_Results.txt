@@ -85,76 +85,28 @@ Estimated Power Dissipation: 2.1 W
 ====================================================================
 ====================================================================
 
---- Input Filter Design Calculations ---
-The rated current of the filter coil (Lf) should be higher than the effective input current (In).
-Effective Input Current (In): -0.6481 A
-    Formula: In = (Vout - Vin) / (Vin * efficiency)
-    Vout = 5 V
-    Vin = 12 V
-    efficiency = 0.9
-    In = -0.6481 A (calculated)
-Filter Capacitor CF2: Infinity uF
-    Formula: CF2 = 1 / ( (2π * 0.1 * Fsw)^2 * Lf )
-    Fsw = 500000 Hz
-    Lf = 0 uH
-    CF2 = Infinity uF (calculated)
-
--- Input Filter Damping Resistor (Rd) Calculation (Q=1, using F_LC) --
-Damping Resistor (Rd): 5.458 ohms (for Q=1, using F_LC)
-    Formula: Rd = 1 / (2π * Q * F_LC * Cf1)
-    F_LC = 2916.1 Hz
-    Q = 1
-    Cf1 = 1E-05 F
-    Rd = 5.458 ohms (calculated)
-
--- Input Filter Quality Factor (Q) --
-Quality Factor (Q): 1 (fixed)
-    Q is set to 1 for optimal damping per app note.
-
--- Input Impedance (Zin) Calculation --
-Input Impedance (Zin): 5.458 ohms
-    Formula: Zin = Rd + s * Lf
-    For DC analysis, s = 0, so Zin = Rd
-    Zin = 5.458 ohms (calculated)
-
--- Input Filter Damping Factor (DF) Calculation --
-Damping Factor (DF): 0.122
-    Formula: DF = 1 / (2π * fco * Cd)
-    fco = 20008.6 Hz
-    Cd = 6.5E-05 F
-    DF = 0.122 (calculated)
-
--- Input Filter Damping Ratio (ζ) Calculation --
-Damping Ratio (ζ): 0.5
-    Formula: ζ = 1 / (2 * Q)
-    Q = 1
-    ζ = 0.5 (calculated)
-
--- Input Filter Step Response Time (tr) Calculation --
-Step Response Time (tr): 0
-    Formula: tr = 0.7 * (Rd + 2 * Lf / Rd) * Cf1
-    Rd = 5.458 ohms
-    Lf = 0 uH
-    Cf1 = 1E-05 F
-    tr = 0 (calculated)
-
--- Filter Coil Current Rating Check --
-Filter coil current rating MAY BE INADEQUATE!
-  - Effective Input Current (In): 0.648148148148148 A
-  - Filter Coil Current Rating (Lf):  A
-
-====================================================================
---- Input Filter Design Summary ---
-  Input Filter Inductor (Lf, calculated):  H
-  Input Filter Inductor (Lf):  nH
-  Warning: Calculated Lf is less than 10 nH. This is likely not physically realizable. Consider reducing CF1 or F_LC.
-  Input Filter Capacitor (CF1): 1E-05 F
-  Damping Resistor (Rd): 5.458 ohms (for Q=1)
-  Damping Capacitor (Cd): 6.5E-05 F
-  Quality Factor (Q): 1
-  Input Impedance (Zin): 5.458 ohms
-  Damping Factor (DF): 0.122
-  Damping Ratio (ζ): 0.5
-  Step Response Time (tr): 0
-  Effective Input Current (In): 0.6481 A
-====================================================================
+--- Input Filter Design Calculations (per best practice) ---
+Effective Input Current (Iin_eff): 1.389 A
+    Formula: Iin_eff = (Vout * Iout) / (Vin * efficiency)
+Filter Capacitor CF2: 0.000072 F
+    Formula: CF2 = 1 / [(2π * 0.1 * Fsw)^2 * LF]
+Input Filter Q Factor: 1.000
+    Formula: Q = Rd * sqrt(CF1 / LF)
+Damping Resistor Rd (for Q=1): 0.118 ohms
+    Formula: Rd = sqrt(LF / CF1)
+Recommended Cd: 0.000050 F < Cd < 0.000100 F
+    Formula: 5*CF1 < Cd < 10*CF1
+Warning: Filter inductor current rating may be inadequate!
+  Input Filter Inductor (LF): 0.14 uH
+  Input Filter Capacitor (CF1): 10.00 uF
+  Filter Capacitor (CF2): 72.37 uF
+  Damping Resistor (Rd for Q=1): 0.118 ohms
+  Damping Capacitor (Cd): 65.00 uF (recommend 5-10x CF1)
+  Q Factor: 1.000
+  Effective Input Current: 1.389 A
+Converter Input Impedance (Zin_con) at Fco: 0.00 ohms
+    Formula: Zin_con = Vin / (Iout * 2π * Fco)
+Input Filter Output Impedance (ZoutF): 0.01 ohms
+    Formula: ZoutF = LF / CF1 (at resonance)
+Warning: Input filter output impedance (ZoutF) is not much less than converter input impedance (Zin_con). Risk of instability!
+Warning: Input filter corner frequency is not much less than converter crossover frequency. Risk of instability!

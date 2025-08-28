@@ -7,6 +7,7 @@ param(
     [double]$CoutDerating = 1.25,  # Derating factor (default 1.25x)
     [string]$OutputFile = "TPS5450_Results.txt",  # Output file name
     [double]$CF1 = 1e-6,  # Input filter capacitor CF1 (default 1 uF)
+    [double]$LF = 10e-6,  # Input filter inductor (default 10 uH)
     [double]$Cd = 5e-6,   # Damping capacitor (default 5 uF)
     [double]$F_LC = 0,    # Input filter corner frequency (default 0 = auto)
     [double]$Q = 0.7      # Input filter quality factor (recommended 0.5–0.8)
@@ -263,138 +264,98 @@ Write-Result "  Catch Diode: Schottky, If > $loadCurrent A, Vr > $inputVoltage V
 Write-Result "  Estimated Power Dissipation: $([math]::Round($Pd,2)) W" "Red"
 Write-Result "===================================================================="
 Write-Result "===================================================================="
-# Input Filter Design Calculations (after TPS5450 summary)
+# --- Input Filter Design (per app note best practice) ---
 Write-Result "" "None"
-Write-Result "--- Input Filter Design Calculations ---" "Cyan"
-# Note about filter coil current rating
-Write-Result "The rated current of the filter coil (Lf) should be higher than the effective input current (In)." "Cyan"
-# Effective input current calculation (from input-filter-for-dcdc-converter_an-e.pdf, eq. 2)
-# In = (Vout - Vin) / (Vin * efficiency)
-$In_eff = ($outputVoltage - $inputVoltage) / ($inputVoltage * $efficiency)
-Write-Result "Effective Input Current (In): $([math]::Round($In_eff,4)) A" "Cyan" "    Formula: In = (Vout - Vin) / (Vin * efficiency)
-    Vout = $outputVoltage V
-    Vin = $inputVoltage V
-    efficiency = $efficiency
-    In = $([math]::Round($In_eff,4)) A (calculated)"
-# Filter capacitor CF2 calculation (eq. 3)
-# CF2 = 1 / ( (2 * pi * 0.1 * Fsw)^2 * Lf )
-$CF2 = 1 / ( [math]::Pow(2 * [math]::PI * 0.1 * $Fsw, 2) * $Lf )
-$CF2_uF = [math]::Round($CF2 * 1e6, 2)
-Write-Result "Filter Capacitor CF2: $CF2_uF uF" "Cyan" "    Formula: CF2 = 1 / ( (2π * 0.1 * Fsw)^2 * Lf )
-    Fsw = $Fsw Hz
-    Lf = $([math]::Round($Lf*1e6,2)) uH
-    CF2 = $CF2_uF uF (calculated)"
+Write-Result "--- Input Filter Design Calculations (per best practice) ---" "Cyan"
+# 1. Effective Input Current
+$efficiency = 0.9  # or user parameter if desired
+$Iin_eff = ($outputVoltage * $loadCurrent) / ($inputVoltage * $efficiency)
+Write-Result ("Effective Input Current (Iin_eff): {0:N3} A" -f $Iin_eff) "Cyan" "    Formula: Iin_eff = (Vout * Iout) / (Vin * efficiency)"
+# 2. User supplies LF and CF1 (MLCC, based on SRF and Fsw)
+# 3. Calculate CF2 for Fsw/10
+$Fsw = 500000  # 500kHz switching frequency
+$F_LC = $Fsw / 10
+$CF2 = 1 / ([math]::Pow(2 * [math]::PI * 0.1 * $Fsw, 2) * $LF)
+Write-Result ("Filter Capacitor CF2: {0:N6} F" -f $CF2) "Cyan" "    Formula: CF2 = 1 / [(2π * 0.1 * Fsw)^2 * LF]"
+<#
+    Input Filter Damping Resistor and Q Calculation Logic:
+    - If user supplies Rd, use it for Q calculation and display both user and recommended Rd.
+    - If not supplied, calculate Rd = sqrt(LF/CF1) and use for Q.
+    - Always show Q and both Rd values (user and recommended).
+#>
 
-
-
-# Input Filter Q, Impedance, and Damping Calculations (Q fixed at 1, solve for Rd using F_LC)
-$Q = 1
-# Rd = 1 / (2 * pi * Q * F_LC * Cf1)
-$Rd = 1 / (2 * [math]::PI * $Q * $F_LC * $CF1)
-$Rd = [math]::Round($Rd, 3)
-Write-Result "" "None"
-Write-Result "-- Input Filter Damping Resistor (Rd) Calculation (Q=1, using F_LC) --"
-Write-Result "Damping Resistor (Rd): $Rd ohms (for Q=1, using F_LC)" "Cyan" "    Formula: Rd = 1 / (2π * Q * F_LC * Cf1)
-    F_LC = $F_LC Hz
-    Q = $Q
-    Cf1 = $CF1 F
-    Rd = $Rd ohms (calculated)"
-
-# 1. Quality Factor (Q) Calculation (fixed)
-Write-Result "" "None"
-Write-Result "-- Input Filter Quality Factor (Q) --"
-Write-Result "Quality Factor (Q): $Q (fixed)" "Cyan" "    Q is set to 1 for optimal damping per app note."
-
-# 2. Input Impedance (Zin) Calculation
-# Zin = Rd + s * Lf (s = j * 2 * pi * f)
-# For DC analysis, s = 0, so Zin = Rd
-$Zin = $Rd
-Write-Result "" "None"
-Write-Result "-- Input Impedance (Zin) Calculation --"
-Write-Result "Input Impedance (Zin): $Zin ohms" "Cyan" "    Formula: Zin = Rd + s * Lf
-    For DC analysis, s = 0, so Zin = Rd
-    Zin = $Zin ohms (calculated)"
-
-# 3. Damping Factor (DF) Calculation
-# DF = 1 / (2 * pi * fco * Cd)
-$DF = 1 / (2 * [math]::PI * $fco * $Cd)
-$DF = [math]::Round($DF, 3)
-Write-Result "" "None"
-Write-Result "-- Input Filter Damping Factor (DF) Calculation --"
-Write-Result "Damping Factor (DF): $DF" "Cyan" "    Formula: DF = 1 / (2π * fco * Cd)
-    fco = $fco Hz
-    Cd = $Cd F
-    DF = $DF (calculated)"
-
-# 4. Damping Ratio (ζ) Calculation
-# ζ = 1 / (2 * Q)
-$zeta = 1 / (2 * $Q)
-$zeta = [math]::Round($zeta, 3)
-Write-Result "" "None"
-Write-Result "-- Input Filter Damping Ratio (ζ) Calculation --"
-Write-Result "Damping Ratio (ζ): $zeta" "Cyan" "    Formula: ζ = 1 / (2 * Q)
-    Q = $Q
-    ζ = $zeta (calculated)"
-
-# 5. Step Response Time (tr) Calculation
-# tr = 0.7 * (Rd + 2 * Lf / Rd) * Cf1
-$tr = 0.7 * ($Rd + 2 * $Lf / $Rd) * $CF1
-$tr = [math]::Round($tr, 3)
-Write-Result "" "None"
-Write-Result "-- Input Filter Step Response Time (tr) Calculation --"
-Write-Result "Step Response Time (tr): $tr" "Cyan" "    Formula: tr = 0.7 * (Rd + 2 * Lf / Rd) * Cf1
-    Rd = $Rd ohms
-    Lf = $([math]::Round($Lf*1e6,2)) uH
-    Cf1 = $CF1 F
-    tr = $tr (calculated)"
-
-# 6. Filter Coil Current Rating Check
-# Check if the rated current of the filter coil (Lf) is higher than the effective input current (In)
-$In_eff_abs = [math]::Abs($In_eff)
-Write-Result "" "None"
-Write-Result "-- Filter Coil Current Rating Check --"
-if ($In_eff_abs -lt $Lf) {
-    Write-Result "Filter coil current rating is adequate." "Green"
+$Rd_user = $null
+if ($PSBoundParameters.ContainsKey('Rd')) {
+    $Rd_user = $Rd
+}
+$Rd_recommended = [math]::Sqrt($LF / $CF1)
+if (-not $Rd_user) {
+    $Rd = $Rd_recommended
+}
+$Q = $Rd * [math]::Sqrt($CF1 / $LF)
+Write-Result ("Input Filter Q Factor: {0:N3}" -f $Q) "Cyan" "    Formula: Q = Rd * sqrt(CF1 / LF)"
+if ($Rd_user) {
+    Write-Result ("Damping Resistor Rd (user supplied): {0:N3} ohms" -f $Rd_user) "Cyan"
+    Write-Result ("Recommended Rd for Q=1: {0:N3} ohms" -f $Rd_recommended) "Cyan" "    Formula: Rd = sqrt(LF / CF1)"
 }
 else {
-    Write-Result "Filter coil current rating MAY BE INADEQUATE!" "Red"
-    Write-Result "  - Effective Input Current (In): $In_eff_abs A" "Red"
-    Write-Result "  - Filter Coil Current Rating (Lf): $Lf A" "Red"
+    Write-Result ("Damping Resistor Rd (for Q=1): {0:N3} ohms" -f $Rd_recommended) "Cyan" "    Formula: Rd = sqrt(LF / CF1)"
 }
+# 6. Cd recommendation
+$Cd_min = 5 * $CF1
+$Cd_max = 10 * $CF1
+Write-Result ("Recommended Cd: {0:N6} F < Cd < {1:N6} F" -f $Cd_min, $Cd_max) "Cyan" "    Formula: 5*CF1 < Cd < 10*CF1"
+# 7. Warnings and checks
+if ($Q -gt 1) {
+    Write-Result "Warning: Q > 1. Input filter may cause instability. Increase Rd or reduce LF/CF1." "Red"
+}
+elseif ($Q -lt 0.5) {
+    Write-Result "Warning: Q < 0.5. Input filter may be over-damped." "Yellow"
+}
+if ($LF -gt 10e-6) {
+    Write-Result "Warning: LF > 10uH. Typical values are <= 10uH for cost and stability." "Yellow"
+}
+if ($Iin_eff -gt $LF) {
+    Write-Result "Warning: Filter inductor current rating may be inadequate!" "Red"
+}
+# 8. Show all values with correct units
+Write-Result ("  Input Filter Inductor (LF): {0:N2} uH" -f ($LF * 1e6)) "White"
+Write-Result ("  Input Filter Capacitor (CF1): {0:N2} uF" -f ($CF1 * 1e6)) "White"
+Write-Result ("  Filter Capacitor (CF2): {0:N2} uF" -f ($CF2 * 1e6)) "White"
+Write-Result ("  Damping Resistor (Rd for Q=1): {0:N3} ohms" -f $Rd) "White"
+Write-Result ("  Damping Capacitor (Cd): {0:N2} uF (recommend 5-10x CF1)" -f ($Cd * 1e6)) "White"
+Write-Result ("  Q Factor: {0:N3}" -f $Q) "White"
+Write-Result ("  Effective Input Current: {0:N3} A" -f $Iin_eff) "White"
 
-# 7. Print Input Filter Summary
-Write-Result "" "None"
-Write-Result "===================================================================="
-Write-Result "--- Input Filter Design Summary ---" "White"
-Write-Result ("  Input Filter Inductor (Lf, calculated): {0:E6} H" -f $Lf) "White"
-if ($Lf -lt 1e-6) {
-    $Lf_nH = $Lf * 1e9
-    Write-Result ("  Input Filter Inductor (Lf): {0:N2} nH" -f $Lf_nH) "White"
-    if ($Lf_nH -lt 10) {
-        Write-Result "  Warning: Calculated Lf is less than 10 nH. This is likely not physically realizable. Consider reducing CF1 or F_LC." "Red"
-    }
+# --- Input Filter Impedance and Stability Checks ---
+# Calculate converter input impedance (Zin_con) at F_LC (approximate, per datasheet: Vin / (Iout * 2 * pi * fco))
+$Zin_con = $inputVoltage / ($loadCurrent * 2 * [math]::PI * $Fco)
+Write-Result ("Converter Input Impedance (Zin_con) at Fco: {0:N2} ohms" -f $Zin_con) "Cyan" "    Formula: Zin_con = Vin / (Iout * 2π * Fco)"
+# Calculate filter output impedance (ZoutF) at F_LC (magnitude of LC branch)
+$ZoutF = $LF / $CF1
+Write-Result ("Input Filter Output Impedance (ZoutF): {0:N2} ohms" -f $ZoutF) "Cyan" "    Formula: ZoutF = LF / CF1 (at resonance)"
+# Stability check: ZoutF << Zin_con
+if ($ZoutF -ge ($Zin_con / 10)) {
+    Write-Result "Warning: Input filter output impedance (ZoutF) is not much less than converter input impedance (Zin_con). Risk of instability!" "Red"
 }
 else {
-    Write-Result ("  Input Filter Inductor (Lf): {0:N2} uH" -f ($Lf * 1e6)) "White"
+    Write-Result "Input filter output impedance is much less than converter input impedance. Stability criterion met." "Green"
 }
-Write-Result "  Input Filter Capacitor (CF1): $CF1 F" "White"
-Write-Result "  Damping Resistor (Rd): $Rd ohms (for Q=1)" "White"
-Write-Result "  Damping Capacitor (Cd): $Cd F" "White"
-Write-Result "  Quality Factor (Q): $Q" "White"
-Write-Result "  Input Impedance (Zin): $Zin ohms" "White"
-Write-Result "  Damping Factor (DF): $DF" "White"
-Write-Result "  Damping Ratio (ζ): $zeta" "White"
-Write-Result "  Step Response Time (tr): $tr" "White"
-Write-Result "  Effective Input Current (In): $([math]::Round($In_eff_abs,4)) A" "White"
-Write-Result "===================================================================="
+# Corner frequency vs. crossover frequency
+if ($F_LC -ge ($Fco / 10)) {
+    Write-Result "Warning: Input filter corner frequency is not much less than converter crossover frequency. Risk of instability!" "Red"
+}
+else {
+    Write-Result "Input filter corner frequency is much less than converter crossover frequency. Stability criterion met." "Green"
+}
 
 <###############################################
 # Example Usage:
 #
-# Basic usage with required parameters:
+# Basic usage with required parameters:""""
 #   .\TPS5450.ps1 -inputVoltage 12 -outputVoltage 5 -loadCurrent 3
 #
-# Specify input ripple voltage and number of output capacitors:
+# Specify input ripple voltage and number of output capacitors:'
 #   .\TPS5450.ps1 -inputVoltage 12 -outputVoltage 5 -loadCurrent 3 -inputRippleVoltage 0.1 -NC 3
 #
 # Specify output file and input filter inductor:
