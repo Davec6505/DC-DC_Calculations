@@ -1,0 +1,160 @@
+TPS5450 Design Calculations Results
+=====================================
+
+--- Calculation Descriptions ---
+Feedback Resistors: Sets output voltage using a resistor divider (Vout = 1.221V * (1 + R1/R2)).
+Inductor: Sets current ripple and affects transient response (L = (Vout * (Vin - Vout)) / (Vin * dIL * Fsw)).
+Output Capacitor: Sets output voltage ripple, stability, and transient response. Includes ESR, ripple current, and voltage rating checks.
+Input Capacitor: Reduces input voltage ripple and supplies current during switching.
+Catch Diode: Provides current path during switch-off, must meet voltage/current/power specs.
+Output Voltage Limits: Device constraints based on duty cycle, diode drop, and inductor DCR.
+Power Dissipation: Estimates device self-heating for thermal design.
+
+-- Feedback Resistor Calculation --
+Feedback Resistors: R1 = 10000 ohms (fixed), R2 = 3231 ohms
+    Formula: Vout = Vref * (1 + R1/R2)
+    Vref = 1.221 V
+    R1 = 10000 ohms (fixed)
+    R2 = 3231 ohms (calculated)
+    Vout = 5 V (target)
+
+-- Inductor Selection --
+Min value for Inductor: 6 uH (choose standard value or higher)
+    Formula: L = (Vout * (Vin - Vout)) / (Vin * dIL * Fsw)
+    Vout = 5 V
+    Vin = 12 V
+    dIL = 0.9 A (30% of load current)
+    Fsw = 500000 Hz
+    L = 6.481 uH (calculated)
+LC Corner Frequency (F_LC): 2916.1 Hz
+Closed-loop Crossover Frequency (Fco): 20008.6 Hz
+Fco is within the recommended range (2590 Hz to 24 kHz).
+
+-- Output Capacitor Selection --
+Output Capacitor: 459.6 uF (choose low ESR type)
+  - Min DC Voltage Rating: 6.25 V (datasheet: (Vout + 0.5*rippleV) x derating)
+  - Max RMS Ripple Current: 0.867 A (datasheet Eq.12)
+  - Max ESR: 0.0173 ohms
+  - Output Ripple Voltage (dIL * ESR_total): 0.00519 V
+    (Check if this meets your design requirements)
+  - Capacitance per Output Capacitor: 153.2 uF
+  - Total Output Capacitance: 459.6 uF
+
+-- Input Capacitor Selection --
+Input Capacitor (for ripple 0.1 V): 14.6 uF (ceramic or low ESR electrolytic)
+Max RMS Input Ripple Current (Icin): 1.5 A
+Calculated Input Ripple Voltage (standard formula): 0.1 V
+Input Ripple Voltage (Ioutmax^0.25 / (Cbulk * Fsw)): 0.1805 V
+
+--- Catch Diode & Output Voltage Limits (per datasheet) ---
+  Catch Diode:
+    - Reverse Voltage Rating >= 12.5 V
+    - Peak Forward Current >= 3.45 A
+    - Forward Voltage Drop (typical): 0.5 V
+    - Estimated Avg Current: 1.625 A
+    - Estimated Power Dissipation: 0.813 W
+  Output Voltage Limits:
+    - Max Output Voltage: 0 V (duty cycle, diode, DCR)
+    - Min Output Voltage: 0 V (on-time, diode, DCR)
+
+Estimated Power Dissipation: 2.1 W
+
+====================================================================
+--- TPS5450 Design Summary ---
+  Input Voltage: 12 V
+  Output Voltage: 5 V
+  Load Current: 3 A
+  Feedback Resistors:
+    - R1: 10000 ohms (fixed)
+    - R2: 3231 ohms
+  Inductor:
+    - Min value: 6 uH (choose standard value or higher)
+  Output Capacitor:
+    - Total: 459.6 uF (choose low ESR type)
+    - Min DC Voltage Rating: 6.25 V
+    - Max RMS Ripple Current: 0.867 A
+    - Max ESR: 0.0173 ohms
+    - Output Ripple Voltage: 0.00519 V
+    - Capacitance per Output Capacitor: 153.2 uF
+    - Number in Parallel: 3
+  Input Capacitor:
+    - Total: 14.6 uF (ceramic or low ESR electrolytic)
+    - Max RMS Input Ripple Current: 1.5 A
+  Catch Diode: Schottky, If > 3 A, Vr > 12 V
+  Estimated Power Dissipation: 2.1 W
+====================================================================
+====================================================================
+
+--- Input Filter Design Calculations ---
+The rated current of the filter coil (Lf) should be higher than the effective input current (In).
+Effective Input Current (In): -0.6481 A
+    Formula: In = (Vout - Vin) / (Vin * efficiency)
+    Vout = 5 V
+    Vin = 12 V
+    efficiency = 0.9
+    In = -0.6481 A (calculated)
+Filter Capacitor CF2: Infinity uF
+    Formula: CF2 = 1 / ( (2π * 0.1 * Fsw)^2 * Lf )
+    Fsw = 500000 Hz
+    Lf = 0 uH
+    CF2 = Infinity uF (calculated)
+
+-- Input Filter Damping Resistor (Rd) Calculation (Q=1, using F_LC) --
+Damping Resistor (Rd): 5.458 ohms (for Q=1, using F_LC)
+    Formula: Rd = 1 / (2π * Q * F_LC * Cf1)
+    F_LC = 2916.1 Hz
+    Q = 1
+    Cf1 = 1E-05 F
+    Rd = 5.458 ohms (calculated)
+
+-- Input Filter Quality Factor (Q) --
+Quality Factor (Q): 1 (fixed)
+    Q is set to 1 for optimal damping per app note.
+
+-- Input Impedance (Zin) Calculation --
+Input Impedance (Zin): 5.458 ohms
+    Formula: Zin = Rd + s * Lf
+    For DC analysis, s = 0, so Zin = Rd
+    Zin = 5.458 ohms (calculated)
+
+-- Input Filter Damping Factor (DF) Calculation --
+Damping Factor (DF): 0.122
+    Formula: DF = 1 / (2π * fco * Cd)
+    fco = 20008.6 Hz
+    Cd = 6.5E-05 F
+    DF = 0.122 (calculated)
+
+-- Input Filter Damping Ratio (ζ) Calculation --
+Damping Ratio (ζ): 0.5
+    Formula: ζ = 1 / (2 * Q)
+    Q = 1
+    ζ = 0.5 (calculated)
+
+-- Input Filter Step Response Time (tr) Calculation --
+Step Response Time (tr): 0
+    Formula: tr = 0.7 * (Rd + 2 * Lf / Rd) * Cf1
+    Rd = 5.458 ohms
+    Lf = 0 uH
+    Cf1 = 1E-05 F
+    tr = 0 (calculated)
+
+-- Filter Coil Current Rating Check --
+Filter coil current rating MAY BE INADEQUATE!
+  - Effective Input Current (In): 0.648148148148148 A
+  - Filter Coil Current Rating (Lf):  A
+
+====================================================================
+--- Input Filter Design Summary ---
+  Input Filter Inductor (Lf, calculated):  H
+  Input Filter Inductor (Lf):  nH
+  Warning: Calculated Lf is less than 10 nH. This is likely not physically realizable. Consider reducing CF1 or F_LC.
+  Input Filter Capacitor (CF1): 1E-05 F
+  Damping Resistor (Rd): 5.458 ohms (for Q=1)
+  Damping Capacitor (Cd): 6.5E-05 F
+  Quality Factor (Q): 1
+  Input Impedance (Zin): 5.458 ohms
+  Damping Factor (DF): 0.122
+  Damping Ratio (ζ): 0.5
+  Step Response Time (tr): 0
+  Effective Input Current (In): 0.6481 A
+====================================================================
