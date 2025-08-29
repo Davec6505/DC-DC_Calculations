@@ -76,7 +76,6 @@ Estimated Power Dissipation: 9.5 W
     - Max ESR: 0.0141 ohms
     - Output Ripple Voltage: 0.00705 V
     - Capacitance per Output Capacitor: 188.1 uF
-    - Number in Parallel: 3
   Input Capacitor:
     - Total: 2.7 uF (ceramic or low ESR electrolytic)
     - Max RMS Input Ripple Current: 2.5 A
