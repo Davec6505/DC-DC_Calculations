@@ -1,0 +1,162 @@
+Effective input current Iin: 1.27032520325203 A   [Iin = (Vout * Iout) / (Vin * eta)]
+# Iin is the average current drawn from the supply, accounting for efficiency.
+Filter capacitor CF2: 1.35094911523117E-06 F   [CF2 = 1 / (2 * pi * 0.1 * Fsw)^2 * LF]
+# CF2 is calculated for optimal filter performance at 1/10th the switching frequency.
+Input current ripple dIin: 0.0423441734417344 A   [dIin = Iin / (8 * fSW * Lf)]
+# dIin is the ripple current at the filter input.
+ZOut: ( 0.00156040727413278 + -0.0317974744889527j ) Ohm   [ZOutF = (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))]
+# ZOutF is the complex output impedance of the filter at the switching frequency.
+Effective input current Iin: 1.15740740740741 A   [Iin = (Vout * Iout) / (Vin * eta)]
+# Iin is the average current drawn from the supply, accounting for efficiency.
+Filter capacitor CF2: 2.02642367284676E-12 F   [CF2 = 1 / (2 * pi * 0.1 * Fsw)^2 * LF]
+# CF2 is calculated for optimal filter performance at 1/10th the switching frequency.
+Input current ripple dIin: 5.78703703703704E-08 A   [dIin = Iin / (8 * fSW * Lf)]
+# dIin is the ripple current at the filter input.
+ZOut: ( 5.51522666796801E-15 + -1.17892550438442E-07j ) Ohm   [ZOutF = (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))]
+# ZOutF is the complex output impedance of the filter at the switching frequency.
+Effective input current Iin: 1.15740740740741 A   [Iin = (Vout * Iout) / (Vin * eta)]
+# Iin is the average current drawn from the supply, accounting for efficiency.
+Filter capacitor CF2: 2.02642367284676E-12 F   [CF2 = 1 / (2 * pi * 0.1 * Fsw)^2 * LF]
+# CF2 is calculated for optimal filter performance at 1/10th the switching frequency.
+Input current ripple dIin: 5.78703703703704E-08 A   [dIin = Iin / (8 * fSW * Lf)]
+# dIin is the ripple current at the filter input.
+ZOut: ( 5.51522666796801E-15 + -1.17892550438442E-07j ) Ohm   [ZOutF = (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))]
+# ZOutF is the complex output impedance of the filter at the switching frequency.
+###################### FILTER CALCULATIONS ######################
+
+Corner frequency (fc): 0.0433164889574265 Hz   'fC = 1 / (2 * pi * sqrt(Lf * Cf2)) ' 
+CF2: 2.02642367284676E-12 F
+LF: 5 H
+
+Effective input current Iin: 1.15740740740741 Amp   'Iin = (Vout * Iout) / (Vin * eta)'
+Effective input current Iin: 1.15740740740741 A   [Iin = (Vout * Iout) / (Vin * eta)]
+# Iin is the average current drawn from the supply, accounting for efficiency.
+Vin: 24 V
+Vout: 5 V
+Iout: 5 Amp
+eta 'efficiency': 0.9
+
+Filter capacitor CF2: 2.02642367284676E-12 F 'CF2 = 1 / (2 * pi * 0.1 * Fsw)^2 * LF' 
+Filter capacitor CF2: 2.02642367284676E-12 F   [CF2 = 1 / (2 * pi * 0.1 * Fsw)^2 * LF]
+# CF2 is calculated for optimal filter performance at 1/10th the switching frequency.
+Fsw: 500000 Hz
+
+dIin: 5.78703703703704E-08 Amps  ' dIin = Iin / (8 * fSW * Lf) '
+Input current ripple dIin: 5.78703703703704E-08 A   [dIin = Iin / (8 * fSW * Lf)]
+# dIin is the ripple current at the filter input.
+Iin: 1.15740740740741 Amps
+fSW: 500000 Hz
+LF: 5 H
+
+Rd: 0.734846922834953 Ohm 'Rd  = sqrt(CF1 / LF)'
+CF1: 2.7 F
+LF: 5 H
+
+ZOut: ( 5.51522666796801E-15 + -1.17892550438442E-07j ) Ohm  'ZOutF = (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))'
+ZOut: ( 5.51522666796801E-15 + -1.17892550438442E-07j ) Ohm   [ZOutF = (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))]
+# ZOutF is the complex output impedance of the filter at the switching frequency.
+LF: 5 H
+CF1: 2.7 F
+Rd: 0.734846922834953 Ohm
+Omega: 3141592.65358979
+Fsw: 500000 Hz
+Numerator: (0, 15707963.267949)
+Denominator: (-133239659414705, 6233192.17458666)
+
+Filter capacitor Cd range: ' (5 * CF1) < Cd < (10 * CF1) '
+Cd_min: 13.5 F
+Cd_max: 27 F
+
+#################################################################
+###################### FILTER CALCULATIONS ######################
+
+Corner frequency (fc): 0.0433164889574265 Hz   'fC = 1 / (2 * pi * sqrt(Lf * Cf2)) ' 
+CF2: 2.02642367284676E-12 F
+LF: 5 H
+
+Effective input current Iin: 1.15740740740741 Amp   'Iin = (Vout * Iout) / (Vin * eta)'
+Effective input current Iin: 1.15740740740741 A   [Iin = (Vout * Iout) / (Vin * eta)]
+# Iin is the average current drawn from the supply, accounting for efficiency.
+Vin: 24 V
+Vout: 5 V
+Iout: 5 Amp
+eta 'efficiency': 0.9
+
+Filter capacitor CF2: 2.02642367284676E-12 F 'CF2 = 1 / (2 * pi * 0.1 * Fsw)^2 * LF' 
+Filter capacitor CF2: 2.02642367284676E-12 F   [CF2 = 1 / (2 * pi * 0.1 * Fsw)^2 * LF]
+# CF2 is calculated for optimal filter performance at 1/10th the switching frequency.
+Fsw: 500000 Hz
+
+dIin: 5.78703703703704E-08 Amps  ' dIin = Iin / (8 * fSW * Lf) '
+Input current ripple dIin: 5.78703703703704E-08 A   [dIin = Iin / (8 * fSW * Lf)]
+# dIin is the ripple current at the filter input.
+Iin: 1.15740740740741 Amps
+fSW: 500000 Hz
+LF: 5 H
+
+Rd: 0.734846922834953 Ohm 'Rd  = sqrt(CF1 / LF)'
+CF1: 2.7 F
+LF: 5 H
+
+ZOut: ( 5.51522666796801E-15 + -1.17892550438442E-07j ) Ohm  'ZOutF = (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))'
+ZOut: ( 5.51522666796801E-15 + -1.17892550438442E-07j ) Ohm   [ZOutF = (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))]
+# ZOutF is the complex output impedance of the filter at the switching frequency.
+LF: 5 H
+CF1: 2.7 F
+Rd: 0.734846922834953 Ohm
+Omega: 3141592.65358979
+Fsw: 500000 Hz
+Numerator: (0, 15707963.267949)
+Denominator: (-133239659414705, 6233192.17458666)
+
+Filter capacitor Cd range: ' (5 * CF1) < Cd < (10 * CF1) '
+Cd_min: 13.5 F
+Cd_max: 27 F
+
+#################################################################
+###################### FILTER CALCULATIONS ######################
+
+Corner frequency (fc): 18377.6298473931 Hz   'fC = 1 / (2 * pi * sqrt(Lf * Cf2)) ' 
+CF2: 1.35094911523117E-06 F
+LF: 7.5E-06 H
+
+Effective input current Iin: 1.27032520325203 Amp   'Iin = (Vout * Iout) / (Vin * eta)'
+Effective input current Iin: 1.27032520325203 A   [Iin = (Vout * Iout) / (Vin * eta)]
+# Iin is the average current drawn from the supply, accounting for efficiency.
+Vin: 24 V
+Vout: 5 V
+Iout: 5 Amp
+eta 'efficiency': 0.82
+
+Filter capacitor CF2: 1.35094911523117E-06 F 'CF2 = 1 / (2 * pi * 0.1 * Fsw)^2 * LF' 
+Filter capacitor CF2: 1.35094911523117E-06 F   [CF2 = 1 / (2 * pi * 0.1 * Fsw)^2 * LF]
+# CF2 is calculated for optimal filter performance at 1/10th the switching frequency.
+Fsw: 500000 Hz
+
+dIin: 0.0423441734417344 Amps  ' dIin = Iin / (8 * fSW * Lf) '
+Input current ripple dIin: 0.0423441734417344 A   [dIin = Iin / (8 * fSW * Lf)]
+# dIin is the ripple current at the filter input.
+Iin: 1.27032520325203 Amps
+fSW: 500000 Hz
+LF: 7.5E-06 H
+
+Rd: 1.15470053837925 Ohm 'Rd  = sqrt(CF1 / LF)'
+CF1: 1E-05 F
+LF: 7.5E-06 H
+
+ZOut: ( 0.00156040727413278 + -0.0317974744889527j ) Ohm  'ZOutF = (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))'
+ZOut: ( 0.00156040727413278 + -0.0317974744889527j ) Ohm   [ZOutF = (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))]
+# ZOutF is the complex output impedance of the filter at the switching frequency.
+LF: 7.5E-06 H
+CF1: 1E-05 F
+Rd: 1.15470053837925 Ohm
+Omega: 3141592.65358979
+Fsw: 500000 Hz
+Numerator: (0, 23.5619449019234)
+Denominator: (-739.220330081702, 36.2759872846844)
+
+Filter capacitor Cd range: ' (5 * CF1) < Cd < (10 * CF1) '
+Cd_min: 5E-05 F
+Cd_max: 0.0001 F
+
+#################################################################

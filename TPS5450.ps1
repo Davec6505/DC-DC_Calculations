@@ -1,16 +1,14 @@
 param(
-    [double]$inputVoltage,
-    [double]$outputVoltage,
-    [double]$loadCurrent,
-    [double]$inputRippleVoltage = 0.12,  # Default 0.12V if not specified
-    [int]$NC = 1,  # Number of output capacitors in parallel
-    [double]$CoutDerating = 1.25,  # Derating factor (default 1.25x)
-    [string]$OutputFile = "TPS5450_Results.txt",  # Output file name
-    [double]$CF1 = 1e-6,  # Input filter capacitor CF1 (default 1 uF)
-    [double]$LF = 10e-6,  # Input filter inductor (default 10 uH)
-    [double]$Cd = 5e-6,   # Damping capacitor (default 5 uF)
-    [double]$F_LC = 0,    # Input filter corner frequency (default 0 = auto)
-    [double]$Q = 0.7      # Input filter quality factor (recommended 0.5–0.8)
+    [double]$inputVoltage = 24.0,       #default input voltage
+    [double]$outputVoltage = 5.0,       #default output voltage
+    [double]$loadCurrent = 5.0,         #default load current
+    [double]$inputRippleVoltage = 0.6,  # Default 0.6 if not specified
+    [int]$NC = 3,                       # Number of output capacitors in parallel
+    [double]$CoutDerating = 1.25,       # Derating factor (default 1.25x)
+    [double]$CF1 = 10e-6,               # Input filter capacitor CF1 (default 10 uF)
+    [double]$efficiency = 0.82,         # Efficiency (default 82%)
+    [double]$Qf = 1.0,                  # Quality factor (default 1.0)
+    [string]$OutputFile = "TPS5450_Results.txt"  # Output file name
 )
 
 # Helper function to write to both console and file, with optional file-only details
@@ -33,7 +31,7 @@ function Write-Result {
 }
 
 # Clear output file at start
-Set-Content -Path $OutputFile -Value "TPS5450 Design Calculations Results`r`n====================================="
+Set-Content -Path $OutputFile -Value "TPS5450 Design Calculations Results`r`n####################################################################"
 
 Write-Result "" "None"
 Write-Result "--- Calculation Descriptions ---" "White"
@@ -120,7 +118,7 @@ if (($L -ne 0) -and ($Cout -ne 0)) {
     Write-Result "LC Corner Frequency (F_LC): $F_LC Hz" -ForegroundColor DarkYellow
 
     Write-Result "Closed-loop Crossover Frequency (Fco): $Fco Hz" -ForegroundColor DarkYellow
-    # Range check
+    ## LC Corner Frequency and crossover frequency calculations removed for bare TPS5450
     if (($Fco -ge 2590) -and ($Fco -le 24000)) {
         Write-Result "Fco is within the recommended range (2590 Hz to 24 kHz)." -ForegroundColor Green
     }
@@ -239,7 +237,7 @@ Write-Result "Estimated Power Dissipation: $([math]::Round($Pd,2)) W" "Red"
 
 # 7. Print Summary
 Write-Result "" "None"
-Write-Result "===================================================================="
+Write-Result "####################################################################"
 Write-Result "--- TPS5450 Design Summary ---" "White"
 Write-Result "  Input Voltage: $inputVoltage V" "White"
 Write-Result "  Output Voltage: $outputVoltage V" "White"
@@ -262,116 +260,23 @@ Write-Result "    - Total: $Cin_uF uF (ceramic or low ESR electrolytic)" "Yellow
 Write-Result "    - Max RMS Input Ripple Current: $Icin_rms A" "Yellow"
 Write-Result "  Catch Diode: Schottky, If > $loadCurrent A, Vr > $inputVoltage V" "Magenta"
 Write-Result "  Estimated Power Dissipation: $([math]::Round($Pd,2)) W" "Red"
-Write-Result "===================================================================="
-Write-Result "===================================================================="
-# --- Input Filter Design (per app note best practice) ---
-Write-Result "" "None"
-Write-Result "--- Input Filter Design Calculations (per best practice) ---" "Cyan"
-# 1. Effective Input Current
-$efficiency = 0.9  # or user parameter if desired
-$Iin_eff = ($outputVoltage * $loadCurrent) / ($inputVoltage * $efficiency)
-Write-Result ("Effective Input Current (Iin_eff): {0:N3} A" -f $Iin_eff) "Cyan" "    Formula: Iin_eff = (Vout * Iout) / (Vin * efficiency)"
-# 2. User supplies LF and CF1 (MLCC, based on SRF and Fsw)
-# 3. Calculate CF2 for Fsw/10
-$Fsw = 500000  # 500kHz switching frequency
-$F_LC = $Fsw / 10
-$CF2 = 1 / ([math]::Pow(2 * [math]::PI * 0.1 * $Fsw, 2) * $LF)
-Write-Result ("Filter Capacitor CF2: {0:N6} F" -f $CF2) "Cyan" "    Formula: CF2 = 1 / [(2π * 0.1 * Fsw)^2 * LF]"
-<#
-    Input Filter Damping Resistor and Q Calculation Logic:
-    - If user supplies Rd, use it for Q calculation and display both user and recommended Rd.
-    - If not supplied, calculate Rd = sqrt(LF/CF1) and use for Q.
-    - Always show Q and both Rd values (user and recommended).
-#>
 
-$Rd_user = $null
-if ($PSBoundParameters.ContainsKey('Rd')) {
-    $Rd_user = $Rd
-}
-$Rd_recommended = [math]::Sqrt($LF / $CF1)
-if (-not $Rd_user) {
-    $Rd = $Rd_recommended
-}
-$Q = $Rd * [math]::Sqrt($CF1 / $LF)
-Write-Result ("Input Filter Q Factor: {0:N3}" -f $Q) "Cyan" "    Formula: Q = Rd * sqrt(CF1 / LF)"
-if ($Rd_user) {
-    Write-Result ("Damping Resistor Rd (user supplied): {0:N3} ohms" -f $Rd_user) "Cyan"
-    Write-Result ("Recommended Rd for Q=1: {0:N3} ohms" -f $Rd_recommended) "Cyan" "    Formula: Rd = sqrt(LF / CF1)"
-}
-else {
-    Write-Result ("Damping Resistor Rd (for Q=1): {0:N3} ohms" -f $Rd_recommended) "Cyan" "    Formula: Rd = sqrt(LF / CF1)"
-}
-# 6. Cd recommendation
-$Cd_min = 5 * $CF1
-$Cd_max = 10 * $CF1
-Write-Result ("Recommended Cd: {0:N6} F < Cd < {1:N6} F" -f $Cd_min, $Cd_max) "Cyan" "    Formula: 5*CF1 < Cd < 10*CF1"
-# 7. Warnings and checks
-if ($Q -gt 1) {
-    Write-Result "Warning: Q > 1. Input filter may cause instability. Increase Rd or reduce LF/CF1." "Red"
-}
-elseif ($Q -lt 0.5) {
-    Write-Result "Warning: Q < 0.5. Input filter may be over-damped." "Yellow"
-}
-if ($LF -gt 10e-6) {
-    Write-Result "Warning: LF > 10uH. Typical values are <= 10uH for cost and stability." "Yellow"
-}
-if ($Iin_eff -gt $LF) {
-    Write-Result "Warning: Filter inductor current rating may be inadequate!" "Red"
-}
-# 8. Show all values with correct units
-Write-Result ("  Input Filter Inductor (LF): {0:N2} uH" -f ($LF * 1e6)) "White"
-Write-Result ("  Input Filter Capacitor (CF1): {0:N2} uF" -f ($CF1 * 1e6)) "White"
-Write-Result ("  Filter Capacitor (CF2): {0:N2} uF" -f ($CF2 * 1e6)) "White"
-Write-Result ("  Damping Resistor (Rd for Q=1): {0:N3} ohms" -f $Rd) "White"
-Write-Result ("  Damping Capacitor (Cd): {0:N2} uF (recommend 5-10x CF1)" -f ($Cd * 1e6)) "White"
-Write-Result ("  Q Factor: {0:N3}" -f $Q) "White"
-Write-Result ("  Effective Input Current: {0:N3} A" -f $Iin_eff) "White"
+Write-Result "####################################################################"
+Write-Result "####################################################################"
 
-# --- Input Filter Impedance and Stability Checks ---
-# Calculate converter input impedance (Zin_con) at F_LC (approximate, per datasheet: Vin / (Iout * 2 * pi * fco))
-$Zin_con = $inputVoltage / ($loadCurrent * 2 * [math]::PI * $Fco)
-Write-Result ("Converter Input Impedance (Zin_con) at Fco: {0:N2} ohms" -f $Zin_con) "Cyan" "    Formula: Zin_con = Vin / (Iout * 2π * Fco)"
-# Calculate filter output impedance (ZoutF) at F_LC (magnitude of LC branch)
-$ZoutF = $LF / $CF1
-Write-Result ("Input Filter Output Impedance (ZoutF): {0:N2} ohms" -f $ZoutF) "Cyan" "    Formula: ZoutF = LF / CF1 (at resonance)"
-# Stability check: ZoutF << Zin_con
-if ($ZoutF -ge ($Zin_con / 10)) {
-    Write-Result "Warning: Input filter output impedance (ZoutF) is not much less than converter input impedance (Zin_con). Risk of instability!" "Red"
-}
-else {
-    Write-Result "Input filter output impedance is much less than converter input impedance. Stability criterion met." "Green"
-}
-# Corner frequency vs. crossover frequency
-if ($F_LC -ge ($Fco / 10)) {
-    Write-Result "Warning: Input filter corner frequency is not much less than converter crossover frequency. Risk of instability!" "Red"
-}
-else {
-    Write-Result "Input filter corner frequency is much less than converter crossover frequency. Stability criterion met." "Green"
-}
+# --- Call FILTER.ps1 with calculated parameters ---
+$filterParams = @(
+    '-Vin', $inputVoltage,
+    '-Vout', $outputVoltage,
+    '-Iout', $loadCurrent,
+    '-eta', $efficiency,      # Use the same efficiency as in TPS5450 calculation
+    '-CF1', $Cin_uF,             # Default or calculated value if available
+    '-CF2', $Cin_uF,             # Default or calculated value if available
+    '-LF', $L_uH,               # Default or calculated value if available
+    '-Fsw', $Fsw,
+    '-Qf', $Qf,               # Default Q factor of 1.0
+    '-Fco', $Fco
+)
+Write-Result "Calling FILTER.ps1 with calculated parameters..." "Cyan"
+& powershell -ExecutionPolicy Bypass -File "./FILTER.ps1" @filterParams
 
-<###############################################
-# Example Usage:
-#
-# Basic usage with required parameters:""""
-#   .\TPS5450.ps1 -inputVoltage 12 -outputVoltage 5 -loadCurrent 3
-#
-# Specify input ripple voltage and number of output capacitors:'
-#   .\TPS5450.ps1 -inputVoltage 12 -outputVoltage 5 -loadCurrent 3 -inputRippleVoltage 0.1 -NC 3
-#
-# Specify output file and input filter inductor:
-#   .\TPS5450.ps1 -inputVoltage 12 -outputVoltage 5 -loadCurrent 3 -OutputFile TPS5450_Results.txt -Lf 10e-6
-#
-# Specify all input filter and damping network parameters:
-#   .\TPS5450.ps1 -inputVoltage 12 -outputVoltage 5 -loadCurrent 3 -Lf 10e-6 -CF1 1e-6 -Rd 1 -Cd 5e-6
-#
-# All parameters (with defaults):
-#   .\TPS5450.ps1 -inputVoltage <V> -outputVoltage <V> -loadCurrent <A> -inputRippleVoltage <V> -NC <n> -CoutDerating <factor> -OutputFile <file> -Lf <H> -CF1 <F> -Rd <ohm> -Cd <F>
-#
-# For help on parameters:
-#   Get-Help .\TPS5450.ps1 -Full
-#
-# Typical values for input filter design:
-#   - Filter inductor (Lf): 0.47 µH to 22 µH (nH to low µH for EMI)
-#   - Filter capacitor (CF1): 1 µF to 100 µF
-#   - Quality factor (Q): 0.5 to 0.8
-###############################################>
