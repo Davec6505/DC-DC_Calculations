@@ -52,6 +52,22 @@ Vin ---LF---+---+---+----> To TPS5450 VIN
 
 Below is a sample output from the script for a typical 12V to 5V, 3A design:
 
+## Output Notation & Formatting
+
+All results are shown in a unified output file, with formulas, engineering units, and clear tabbed alignment. Key complex results (such as filter output impedance ZOut) are displayed in:
+- Rectangular form: (a + bj)
+- Polar form: |Z| ∠ θ°
+- Magnitude only: |Z|
+
+**Example ZOut Output:**
+```
+  - ZOut: ( 0.00144 + -0.03181j ) Ohm   [= (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))]
+  - ZOut: 0.03184 ∠ -87.41° Ohm         [polar: |Z| ∠ θ]
+  - |ZOut|: 0.03184 Ohm                 [magnitude only]
+```
+
+All filter and converter calculations are grouped and annotated for clarity in the same output file.
+
 ```
 TPS5450 Design Calculations Results
 =====================================
@@ -176,13 +192,18 @@ This script is intended for engineers designing with the TPS5450 step-down (buck
 - Stability and impedance margin checks
 
 ## How to Use
+
 Run the script in PowerShell with your design parameters. Example:
 
 ```powershell
-.\TPS5450.ps1 -inputVoltage 12 -outputVoltage 5 -loadCurrent 3 -inputRippleVoltage 0.1 -NC 3 -CoutDerating 1.25 -OutputFile TPS5450_Results.txt -LF 140e-9 -CF1 10e-6 -Cd 65e-6
+.\TPS5450.ps1 -Vin 24 -Vout 5 -Iout 5 -CF1 10e-6 -efficiency 0.82 -Qf 1 -OutputFile MyResultsPS.txt -Filter $true
 ```
 
-All results and calculation breakdowns will be shown in the console and saved to the specified output file.
+All results and calculation breakdowns will be shown in the console and saved to the specified output file. Both converter and filter results are included.
+
+### Troubleshooting
+- If you do not see filter results in your output file, ensure you are using the latest script version and passing `-Filter $true` and `-OutputFile` parameters.
+- If output is misaligned, check your PowerShell font or output file encoding.
 
 ## Parameters
 - `inputVoltage` (V): Input voltage to the converter

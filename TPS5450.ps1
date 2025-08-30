@@ -1,15 +1,64 @@
 param(
-    [double]$inputVoltage = 24.0,       #default input voltage
-    [double]$outputVoltage = 5.0,       #default output voltage
-    [double]$loadCurrent = 5.0,         #default load current
-    [double]$inputRippleVoltage = 0.6,  # Default 0.6 if not specified
-    [int]$NC = 3,                       # Number of output capacitors in parallel
-    [double]$CoutDerating = 1.25,       # Derating factor (default 1.25x)
-    [double]$CF1 = 10e-6,               # Input filter capacitor CF1 (default 10 uF)
-    [double]$efficiency = 0.82,         # Efficiency (default 82%)
-    [double]$Qf = 1.0,                  # Quality factor (default 1.0)
-    [string]$OutputFile = "TPS5450_Results.txt"  # Output file name
+    # default input voltage
+    [double]$Vin = 24.0,
+    # default output voltage
+    [double]$Vout = 5.0,
+    # default load current
+    [double]$Iout = 5.0,
+    # Switchers frequency (default 500 kHz)
+    [double]$Fsw = 500e3,
+    # Default 0.6 if not specified
+    [double]$Vin_ripple = 0.6,
+    # Input filter capacitor CF1 (default 10 uF)
+    [double]$CF1 = 10e-6,
+    # ESR of input capacitor (default 50 mOhm)
+    [double]$ESRmax_cf1 = 1.6e-3,
+      # Number of output capacitors in parallel
+    [int]$NC = 3,
+    # Diode forward voltage drop (default 0.55 V)
+    [double]$VD = 0.55,
+    # Efficiency (default 82%)
+    [double]$efficiency = 0.82,
+    # Quality factor (default 1.0)
+    [double]$Qf = 1.0,
+    # Output file name
+    [string]$OutputFile = "TPS5450_Results.txt",
+    # Whether to call FILTER.ps1 with calculated parameters (default false)
+    [bool]$Filter = $false
 )
+
+
+# Helper function to write to both console and file, with optional file-only details
+function Write-Result {
+    param(
+        [string]$text,
+        [string]$color = "White",
+        [string]$fileDetail = $null
+    )
+    if ($color -ne "None") {
+        Write-Host $text -ForegroundColor $color
+    }
+    else {
+        Write-Host $text
+    }
+    Add-Content -Path $OutputFile -Value $text
+    if ($fileDetail) {
+        Add-Content -Path $OutputFile -Value $fileDetail
+    }
+}
+
+if (-not $CF1) {
+    $CF1 = Read-Host "Enter value for CF1 (input filter capacitor in Farads, e.g., 10e-6 for 10uF)"
+}
+if (-not $ESRmax_cf1) {
+    $ESRmax_cf1 = Read-Host "Enter value for ESRmax (input capacitor ESR in Ohms, e.g., 0.0915)"
+}
+
+# Ensure $Kind is set (inductor ripple coefficient, typical 0.2)
+if ($Kind -eq $null -or $Kind -le 0) {
+    $Kind = 0.2
+    Write-Result "Defaulted Kind (inductor ripple coefficient) to $Kind" "Green"
+}
 
 # Helper function to write to both console and file, with optional file-only details
 function Write-Result {
@@ -33,250 +82,170 @@ function Write-Result {
 # Clear output file at start
 Set-Content -Path $OutputFile -Value "TPS5450 Design Calculations Results`r`n####################################################################"
 
-Write-Result "" "None"
-Write-Result "--- Calculation Descriptions ---" "White"
-# Calculation Descriptions
-Write-Result "Feedback Resistors: Sets output voltage using a resistor divider (Vout = 1.221V * (1 + R1/R2))." "Cyan"
-Write-Result "Inductor: Sets current ripple and affects transient response (L = (Vout * (Vin - Vout)) / (Vin * dIL * Fsw))." "Green"
-Write-Result "Output Capacitor: Sets output voltage ripple, stability, and transient response. Includes ESR, ripple current, and voltage rating checks." "Yellow"
-Write-Result "Input Capacitor: Reduces input voltage ripple and supplies current during switching." "Yellow"
-Write-Result "Catch Diode: Provides current path during switch-off, must meet voltage/current/power specs." "Magenta"
-Write-Result "Output Voltage Limits: Device constraints based on duty cycle, diode drop, and inductor DCR." "DarkYellow"
-Write-Result "Power Dissipation: Estimates device self-heating for thermal design." "Red"
 
-# TPS5450 DC-DC Converter Calculations
-# Reference: TI TPS5450 Datasheet
-
+# Constants
 $Vref = 1.221
+$Fco  = 12e3
+
+
+# Calculate feedback resistors
 $R1 = 10000  # 10kΩ hard coded
-$R2 = [math]::Round($R1 / (($outputVoltage / $Vref) - 1), 0)
-Write-Result "" "None"
-Write-Result "-- Feedback Resistor Calculation --"
-Write-Result "Feedback Resistors: R1 = $R1 ohms (fixed), R2 = $R2 ohms" "Cyan" "    Formula: Vout = Vref * (1 + R1/R2)
-    Vref = $Vref V
-    R1 = $R1 ohms (fixed)
-    R2 = $R2 ohms (calculated)
-    Vout = $outputVoltage V (target)"
+$R2 = [math]::Round(($R1 * $Vref) / ($Vout - $Vref), 0)
 
-# 2. Inductor Selection (L = (Vout * (Vin - Vout)) / (Vin * ΔIL * Fsw))
-$Fsw = 500000  # 500kHz switching frequency
-$deltaIL = 0.3 * $loadCurrent  # 30% ripple current
-$L = ($outputVoltage * ($inputVoltage - $outputVoltage)) / ($inputVoltage * $deltaIL * $Fsw)
-$L_uH = [math]::Round($L * 1e6, 0)
-Write-Result "" "None"
-Write-Result "-- Inductor Selection --"
-Write-Result "Min value for Inductor: $L_uH uH (choose standard value or higher)" "Green" "    Formula: L = (Vout * (Vin - Vout)) / (Vin * dIL * Fsw)
-    Vout = $outputVoltage V
-    Vin = $inputVoltage V
-    dIL = $deltaIL A (30% of load current)
-    Fsw = $Fsw Hz
-    L = $([math]::Round($L*1e6,3)) uH (calculated)"
+# Calculate duty cycle
+$D = $Vout / $Vin  # Duty cycle
+
+# More accurate input ripple voltage calculations
+# Capacitive component
+$dVin_C = ($Iout * $D * (1 - $D)) / ($CF1 * $Fsw)
+# ESR component
+$dVin_ESR = $Iout * $D * $ESRmax_cf1
+# Total input ripple voltage
+$dVin_total = $dVin_C + $dVin_ESR
+
+# Calculate input cap RMS ripple current (standard formula)
+$Ic_in_rms = $Iout * [math]::Sqrt($D * (1 - $D))
+
+# Calculate total average input current
+$Iin_avg = ($Iout * $Vout) / ($Vin * $efficiency)
 
 
-# 3. Output Capacitor Selection (Cout = 1/(3357 * Lout * fco * Vout))
 
-$fco = 20000  # Default crossover frequency, user can adjust as needed
-if (($L -ne 0) -and ($fco -ne 0) -and ($outputVoltage -ne 0)) {
-    $Cout = 1 / (3357 * $L * $fco * $outputVoltage)
-    $Cout_uF = [math]::Round($Cout * 1e6, 1)
-}
-else {
-    $Cout = 0
-    $Cout_uF = 0
+
+# Calculate minimum output inductor value (in Henries)
+$L_min = ($Vout * ($Vin - $Vout)) / ($Vin * $Kind * $Iout * $Fsw)
+$L_min_uH = $L_min * 1e6
+if ($L_min -lt 1e-7 -or $L_min -gt 1e-3) {
+    Write-Result "Warning: Calculated L_min is out of typical range: $L_min H" "Red"
 }
 
-# Output Capacitor Design Factors
-# 1. DC Voltage Rating (datasheet: Vout + 0.5*rippleV, then apply derating)
-$Cout_Vdc_min = $outputVoltage
-if (($Cout_ESR_max -is [double]) -and ($NC -ne 0) -and ($deltaIL -is [double])) {
-    $ESR_total = $Cout_ESR_max / $NC
-    $rippleV = $deltaIL * $ESR_total
-    $Cout_Vdc_min = $outputVoltage + ($rippleV / 2)
-}
-$Cout_Vdc = [math]::Round($Cout_Vdc_min * $CoutDerating, 2)
-# 2. RMS Ripple Current (datasheet Equation 12)
-# Irms = sqrt( (deltaIL^2)/12 + (Iout^2) * (Vout/Vin) * (1 - Vout/Vin) ) / sqrt(NC)
-$D = $outputVoltage / $inputVoltage
-$Irms = [math]::Sqrt(( [math]::Pow($deltaIL, 2) / 12 ) + ( [math]::Pow($loadCurrent, 2) * $D * (1 - $D) )) / [math]::Sqrt($NC)
-$Irms = [math]::Round($Irms, 3)
-# 3. ESR (max) = 1/(2*pi*Fco*Cout)
-if (($fco -ne 0) -and ($Cout -ne 0)) {
-    $Cout_ESR_max = 1 / (2 * [math]::PI * $fco * $Cout)
-    $Cout_ESR_max = [math]::Round($Cout_ESR_max, 4)
-}
-else {
-    $Cout_ESR_max = 0
+# 6. Calculate Inductor Ripple Current
+$IL_rms = [math]::Sqrt(
+         [math]::Pow($Iout, 2) + 
+         (1/12) * [math]::Pow((($Vout * ($Vin - $Vout)) / ($Vin * $L_min * $Fsw)), 2)
+        )
+
+
+# 7. Calculate Inductor Current Ratings
+$IL_peak = $Iout + ((($Vout * ($Vin - $Vout)) / (1.6 * $Vin * $L_min * $Fsw)))
+
+## Output Capacitor Selection
+# 8. Cout
+# Calculate output capacitance (in Farads)
+$Cout = 1 / (3357 * $L_min * $Fco * $Vout)
+$Cout_uF = $Cout * 1e6
+if ($Cout -lt 1e-6 -or $Cout -gt 1e-2) {
+    Write-Result "Warning: Calculated Cout is out of typical range: $Cout F" "Red"
 }
 
-# 4. LC Corner Frequency
-if (($L -ne 0) -and ($Cout -ne 0)) {
-    $F_LC = 1 / (2 * [math]::PI * [math]::Sqrt($L * $Cout))
-    $F_LC = [math]::Round($F_LC, 1)
-    # 5. Closed-loop crossover frequency
-    $Fco = ($F_LC * $F_LC) / (85 * $outputVoltage)
-    $Fco = [math]::Round($Fco, 1)
-    Write-Result "LC Corner Frequency (F_LC): $F_LC Hz" -ForegroundColor DarkYellow
+# 9. Calculate Corner Frequency 
+$f_LC = 1 / (2 * [math]::PI * [math]::Sqrt($L_min * $Cout))
 
-    Write-Result "Closed-loop Crossover Frequency (Fco): $Fco Hz" -ForegroundColor DarkYellow
-    ## LC Corner Frequency and crossover frequency calculations removed for bare TPS5450
-    if (($Fco -ge 2590) -and ($Fco -le 24000)) {
-        Write-Result "Fco is within the recommended range (2590 Hz to 24 kHz)." -ForegroundColor Green
-    }
-    else {
-        Write-Result "Fco is OUTSIDE the recommended range (2590 Hz to 24 kHz)!" -ForegroundColor Red
-    }
-}
-else {
-    Write-Result "LC Corner Frequency and Fco: N/A (L or Cout = 0)" -ForegroundColor Red
-}
-# <-- Add missing closing brace for LC Corner Frequency block
+# 10. Calculate Fco
+#$Fco = [math]::Pow($f_LC, 2) / (85 * $Vout)
 
-Write-Result "" "None"
-Write-Result "-- Output Capacitor Selection --"
-Write-Result "Output Capacitor: $Cout_uF uF (choose low ESR type)" "Yellow"
-Write-Result "  - Min DC Voltage Rating: $Cout_Vdc V (datasheet: (Vout + 0.5*rippleV) x derating)" "Yellow"
-Write-Result "  - Max RMS Ripple Current: $Irms A (datasheet Eq.12)" "Yellow"
-if ($Cout_ESR_max -eq 0) {
-    Write-Result "  - Max ESR: N/A" "Yellow"
-}
-else {
-    Write-Result "  - Max ESR: $Cout_ESR_max ohms" "Yellow"
-}
+# 10. Calculate individual output capacitor value (in Farads and uF)
+$Cout_individual = $Cout / $NC
+$Cout_individual_uF = $Cout_individual * 1e6
 
-# Output Ripple Voltage Check (datasheet method: dIL * ESR_total)
-if (($Cout_ESR_max -is [double]) -and ($NC -ne 0) -and ($deltaIL -is [double])) {
-    $ESR_total = $Cout_ESR_max / $NC
-    $rippleV = $deltaIL * $ESR_total
-    $rippleV = [math]::Round($rippleV, 6)
-    Write-Result "  - Output Ripple Voltage (dIL * ESR_total): $rippleV V" "Blue"
-    Write-Result "    (Check if this meets your design requirements)" "Blue"
-    $Cout_per = $Cout / $NC
-    $Cout_per_uF = [math]::Round($Cout_per * 1e6, 1)
-    $Cout_total_uF = [math]::Round($Cout * 1e6, 1)
-    Write-Result "  - Capacitance per Output Capacitor: $Cout_per_uF uF" "Blue"
+# Calculate max ESR for total and per capacitor
+$ESRmax_total = 1 / (2 * [math]::PI * $Fco)
+$ESRmax_individual = $ESRmax_total * $NC
 
-    Write-Result "  - Total Output Capacitance: $Cout_total_uF uF" "Blue"
-}
-else {
-    Write-Result "  - Output Ripple Voltage: N/A (missing data)" "Blue"
-}
+# For display, convert ESR to mOhms
+$ESRmax_total_mOhm = $ESRmax_total * 1e3
+$ESRmax_individual_mOhm = $ESRmax_individual * 1e3
 
-# 4. Input Capacitor Selection (Cin >= Iout * D * (1 - D) / (ΔVin * Fsw))
-$D = $outputVoltage / $inputVoltage  # Duty cycle
+# 11. Calculate Output Ripple Voltage
+#$rippleV = ($ESRmax * $Vout * ($Vin_max - $Vout)) / ($NC * $Vin_max * $Lout * $Fsw)
 
-Write-Result "" "None"
-Write-Result "-- Input Capacitor Selection --"
-# Use user-specified input ripple voltage for Cin calculation
-if ($inputRippleVoltage -ne 0) {
-    $Cin = $loadCurrent * $D * (1 - $D) / ($inputRippleVoltage * $Fsw)
-    $Cin_uF = [math]::Round($Cin * 1e6, 1)
-    Write-Result "Input Capacitor (for ripple $inputRippleVoltage V): $Cin_uF uF (ceramic or low ESR electrolytic)" "Yellow"
-}
-else {
-    $Cin = 0
-    $Cin_uF = 0
-    Write-Result "Input Capacitor: N/A (input ripple voltage = 0)" "Yellow"
-}
+# 12. Calculate Output Capacitor RMS Ripple Current
+#$Icout_rms = 1 / [math]::Sqrt(12) * (($Vout * ($Vin_max - $Vout)) / ($Vin_max * $Lout * $Fsw * $NC))
 
-# Calculate input ripple voltage (ΔVin = Iout * D * (1 - D) / (Cin * Fsw))
-# Max RMS input ripple current
-$Icin_rms = [math]::Round($loadCurrent / 2, 3)
-Write-Result "Max RMS Input Ripple Current (Icin): $Icin_rms A" "DarkCyan"
-if ($Cin -ne 0) {
-    $inputRippleV = $loadCurrent * $D * (1 - $D) / ($Cin * $Fsw)
-    $inputRippleV = [math]::Round($inputRippleV, 4)
-    Write-Result "Calculated Input Ripple Voltage (standard formula): $inputRippleV V" "Blue"
-
-    # Input ripple voltage using Ioutmax^0.25 / (Cbulk * Fsw)
-    $Cbulk = $Cin  # Assume Cbulk is Cin for this calculation
-    if ($Cbulk -ne 0) {
-        $inputRippleV_alt = [math]::Pow($loadCurrent, 0.25) / ($Cbulk * $Fsw)
-        $inputRippleV_alt = [math]::Round($inputRippleV_alt, 4)
-        Write-Result "Input Ripple Voltage (Ioutmax^0.25 / (Cbulk * Fsw)): $inputRippleV_alt V" "DarkBlue"
-    }
-    else {
-        Write-Result "Input Ripple Voltage (Ioutmax^0.25 / (Cbulk * Fsw)): N/A (Cbulk = 0)" "DarkBlue"
-    }
-}
-else {
-    Write-Result "Calculated Input Ripple Voltage: N/A (Cin = 0)" "Blue"
-}
-
-Write-Result "" "None"
-Write-Result "--- Catch Diode & Output Voltage Limits (per datasheet) ---" "Magenta"
-# --- Catch Diode Selection (per datasheet) ---
-# Reverse voltage requirement: VINMAX + 0.5V
-$CatchDiode_Vr = $inputVoltage + 0.5
-# Peak current requirement: IOUTMAX + 0.5 * deltaIL
-$CatchDiode_If_peak = $loadCurrent + 0.5 * $deltaIL
-# Forward voltage drop (user can override if needed)
-$CatchDiode_Vf = 0.5  # Typical for Schottky
-# Estimate diode conduction time (approximate, for efficiency)
-$CatchDiode_DiodeTime = 1 - ($outputVoltage + $CatchDiode_Vf) / $inputVoltage
-if ($CatchDiode_DiodeTime -lt 0) { $CatchDiode_DiodeTime = 0 }
-# Average diode current (approximate)
-$CatchDiode_If_avg = $loadCurrent * $CatchDiode_DiodeTime
-# Power dissipation in diode
-$CatchDiode_Pd = $CatchDiode_If_avg * $CatchDiode_Vf
-
-Write-Result "  Catch Diode:" "Magenta"
-Write-Result "    - Reverse Voltage Rating >= $CatchDiode_Vr V" "Magenta"
-Write-Result "    - Peak Forward Current >= $CatchDiode_If_peak A" "Magenta"
-Write-Result "    - Forward Voltage Drop (typical): $CatchDiode_Vf V" "Magenta"
-Write-Result "    - Estimated Avg Current: $([math]::Round($CatchDiode_If_avg,3)) A" "Magenta"
-Write-Result "    - Estimated Power Dissipation: $([math]::Round($CatchDiode_Pd,3)) W" "Magenta"
-Write-Result "  Output Voltage Limits:" "DarkYellow"
-Write-Result "    - Max Output Voltage: $([math]::Round($Vout_max,2)) V (duty cycle, diode, DCR)" "DarkYellow"
-Write-Result "    - Min Output Voltage: $([math]::Round($Vout_min,2)) V (on-time, diode, DCR)" "DarkYellow"
-
-# 6. Power Dissipation Estimate (Pd = Iout * (Vin - Vout) * (1 - Efficiency))
-$efficiency = 0.9  # Assume 90% efficiency
-$Pd = $loadCurrent * ($inputVoltage - $outputVoltage) * (1 - $efficiency)
-Write-Result "" "None"
-Write-Result "Estimated Power Dissipation: $([math]::Round($Pd,2)) W" "Red"
-
+# --- Calculate/Estimate Key Parameters for Part Selection ---
 # 7. Print Summary
 Write-Result "" "None"
 Write-Result "####################################################################"
-Write-Result "--- TPS5450 Design Summary ---" "White"
-Write-Result "  Input Voltage: $inputVoltage V" "White"
-Write-Result "  Output Voltage: $outputVoltage V" "White"
-Write-Result "  Load Current: $loadCurrent A" "White"
+Write-Result "###################### TPS5450 Design Summary ######################" "White"
+
+Write-Result "  Input Voltage: $Vin V" "White"
+Write-Result "  Output Voltage: $Vout V" "White"
+Write-Result "  Load Current: $Iout A" "White"
 Write-Result "  Feedback Resistors:" "Cyan"
 Write-Result "    - R1: $R1 ohms (fixed)" "Cyan"
 Write-Result "    - R2: $R2 ohms" "Cyan"
+
+Write-Result "  Input Parameters:" "Blue"
+Write-Result "    - Ripple Voltage (Capacitive):`t$dVin_C V`t[= (Iout * D * (1 - D)) / (CF1 * Fsw)]" "Blue"
+Write-Result "    - Ripple Voltage (ESR):      `t$dVin_ESR V`t[= Iout * D * ESRmax_cf1]" "Blue"
+Write-Result "    - Ripple Voltage (Total):    `t$dVin_total V`t[= Ripple_C + Ripple_ESR]" "Blue"
+Write-Result "    - Average Current @ ${Iout}A:`t$Iin_avg A`t[= (Iout * Vout) / (Vin * efficiency)]" "Blue"
+Write-Result "    - Cap RMS Current:           `t$Ic_in_rms A`t[= Iout * sqrt(D * (1 - D))]" "Blue"
+
 Write-Result "  Inductor:" "Green"
-Write-Result "    - Min value: $L_uH uH (choose standard value or higher)" "Green"
+Write-Result "    - Min value:                 `t$L_min_uH uH`t(choose standard value or higher) [= (Vout * (Vin - Vout)) / (Vin * Kind * Iout * Fsw)]" "Green"
+Write-Result "    - RMS Current:               `t$IL_rms A`t[= sqrt(Iout^2 + (1/12) * ((Vout * (Vin - Vout)) / (Vin * L_min * Fsw))^2)]" "Green"
+Write-Result "    - Peak Current:              `t$IL_peak A`t[= Iout + ((Vout * (Vin - Vout)) / (1.6 * Vin * L_min * Fsw))]" "Green"
+
 Write-Result "  Output Capacitor:" "Yellow"
-Write-Result "    - Total: $Cout_uF uF (choose low ESR type)" "Yellow"
-Write-Result "    - Min DC Voltage Rating: $Cout_Vdc V" "Yellow"
-Write-Result "    - Max RMS Ripple Current: $Irms A" "Yellow"
-Write-Result "    - Max ESR: $Cout_ESR_max ohms" "Yellow"
-Write-Result "    - Output Ripple Voltage: $rippleV V" "Yellow"
-Write-Result "    - Capacitance per Output Capacitor: $Cout_per_uF uF" "Yellow"
+Write-Result "    - Corner Frequency:          `t$f_LC Hz`t[= 1 / (2 * pi * sqrt(L_min * Cout))]" "Yellow"
+Write-Result "    - Crossover Frequency:       `t$Fco Hz`t[set by user or default]" "Yellow"
+Write-Result "    - Total:                     `t$Cout_uF uF`t(choose low ESR type) [= 1 / (3357 * L_min * Fco * Vout)]" "Yellow"
+Write-Result "    - Individual:                `t$Cout_individual_uF uF`t(each capacitor using NC) [= Cout / NC]" "Yellow"
+Write-Result "    - Max ESR (total bank):      `t$ESRmax_total_mOhm mOhm`t[= 1 / (2 * pi * Fco)]" "Yellow"
+Write-Result "    - Max ESR (per cap):         `t$ESRmax_individual_mOhm mOhm`t[= ESRmax_total * NC]" "Yellow"
 Write-Result "    - Number in Parallel: $NC" "Yellow"
-Write-Result "  Input Capacitor:" "Yellow"
-Write-Result "    - Total: $Cin_uF uF (ceramic or low ESR electrolytic)" "Yellow"
-Write-Result "    - Max RMS Input Ripple Current: $Icin_rms A" "Yellow"
-Write-Result "  Catch Diode: Schottky, If > $loadCurrent A, Vr > $inputVoltage V" "Magenta"
-Write-Result "  Estimated Power Dissipation: $([math]::Round($Pd,2)) W" "Red"
+
+Write-Result "  Input Filter Capacitor:" "Yellow"
+Write-Result "    - CF1: $CF1 uF" "Yellow"
+Write-Result "    - ESR: $ESRmax_cf1 Ohm" "Yellow"
+
+
+# --- Practical/WEBENCH Output Capacitance Example (6TPE220MAZB) ---
+$Cout_practical = 220e-6 * $NC # 220uF
+$Cout_practical_uF = $Cout_practical * 1e6
+$ESR_practical_individual = 0.018   # 18 mOhm from datasheet
+$ESR_practical_total = $ESR_practical_individual  # Only one cap used
+$ESR_practical_total_mOhm = $ESR_practical_total * 1e3
+
+Write-Result "  Practical Output Cap Example (WEBENCH):" "Cyan"
+Write-Result "    - Total: $Cout_practical_uF uF (6TPE220MAZB)" "Cyan"
+Write-Result "    - ESR: $ESR_practical_total_mOhm mOhm (datasheet)" "Cyan"
+
+
+# --- Practical/WEBENCH Output Capacitance Ripple Calculation ---
+# Output ripple due to capacitance (capacitive component)
+$rippleV_practical_C = ($Iout / ($Fsw * $Cout_practical))
+# Output ripple due to ESR (resistive component)
+$rippleV_practical_ESR = $Iout * $ESR_practical_total
+# Total output ripple voltage (approximate sum)
+$rippleV_practical_total = $rippleV_practical_C + $rippleV_practical_ESR
+
+Write-Result "  Practical Output Ripple Calculation (WEBENCH):" "Cyan"
+Write-Result "    - Ripple (Capacitive): $rippleV_practical_C V" "Cyan"
+Write-Result "    - Ripple (ESR): $rippleV_practical_ESR V" "Cyan"
+Write-Result "    - Total Output Ripple: $rippleV_practical_total V" "Cyan"
+
 
 Write-Result "####################################################################"
 Write-Result "####################################################################"
 
-# --- Call FILTER.ps1 with calculated parameters ---
-$filterParams = @(
-    '-Vin', $inputVoltage,
-    '-Vout', $outputVoltage,
-    '-Iout', $loadCurrent,
-    '-eta', $efficiency,      # Use the same efficiency as in TPS5450 calculation
-    '-CF1', $Cin_uF,             # Default or calculated value if available
-    '-CF2', $Cin_uF,             # Default or calculated value if available
-    '-LF', $L_uH,               # Default or calculated value if available
-    '-Fsw', $Fsw,
-    '-Qf', $Qf,               # Default Q factor of 1.0
-    '-Fco', $Fco
-)
-Write-Result "Calling FILTER.ps1 with calculated parameters..." "Cyan"
-& powershell -ExecutionPolicy Bypass -File "./FILTER.ps1" @filterParams
+if ($Filter -eq $true) {
+    # --- Call FILTER.ps1 with correct filter parameters ---
+    $filterParams = @(
+        '-Vin', $Vin,
+        '-Vout', $Vout,
+        '-Iout', $Iout,
+        '-eta', $efficiency,      # Use the same efficiency as in TPS5450 calculation
+        '-CF1', $CF1,             # Input filter cap (before inductor)
+        '-CF2', $CF1,             # Input filter cap (after inductor, before buck)
+        '-LF', $L_min,            # Use calculated minimum inductor value
+        '-Fsw', $Fsw,
+        '-Qf', $Qf,               # Default Q factor of 1.0
+        '-Fco', $Fco,
+        '-OutputFile', $OutputFile # Use the same output file for both scripts
+    )
+    Write-Result "Calling FILTER.ps1 with input filter cap values (not output cap)..." "Cyan"
+    & powershell -ExecutionPolicy Bypass -File "./FILTER.ps1" @filterParams
+}
 

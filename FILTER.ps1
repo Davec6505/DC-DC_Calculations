@@ -156,7 +156,7 @@ $Iin = $Vout * $Iout / ($Vin * $eta)
 
 #The filter capacitor CF2 can be calculated using 
 # (3)  Cf2 = 1 / (2π∙0,1∙𝑓sw)^2∙𝐿f
-$CF2 = 1 / ( [math]::Pow((2 * [Math]::PI * 0.1 * $Fsw), 2) * $LF )
+# $CF2 = 1 / ( [math]::Pow((2 * [Math]::PI * 0.1 * $Fsw), 2) * $LF )
 
 
 #The input current ripple can be estimated using equation (4):
@@ -187,62 +187,67 @@ $j = [System.Numerics.Complex]::ImaginaryOne
 $numerator = $j * $omega * $LF
 $denominator = 1 - ($LF * $CF1 * [Math]::Pow($omega, 2)) + $j * ($omega * $Rd * $CF1)
 $ZOut = $numerator / $denominator
+$ZOut_Mag = [Math]::Sqrt([Math]::Pow($ZOut.Real,2) + [Math]::Pow($ZOut.Imaginary,2))
+$ZOut_Phase = [Math]::Atan2($ZOut.Imaginary, $ZOut.Real) * 180 / [Math]::PI
 
+
+# Calculate Cd for RC damping network (choose 5x to 10x CF1, use 5x for example)
+$Cd = 5 * $CF1
+$Cd_uF = $Cd * 1e6
+
+# Display Rd and Cd in summary
+$Rd_mOhm = $Rd * 1e3
+Write-Result "  Damping Network Values:" "Cyan"
+Write-Result ("    - Rd: {0:N2} Ohm`t[= sqrt(CF1 / LF)]" -f $Rd) "Cyan"
+Write-Result ("    - Cd: {0:N0} uF`t[= 5 * CF1] (suggested)" -f $Cd_uF) "Cyan"
 
 #A ceramic capacitor Cd in series with the R-C network has a factor of 5 to 10 of the filter-capacitor capacitance.
 #(9) (5 ∙ 𝐶F1) < 𝐶d < (10∙𝐶F1)
 $Cd_min = 5 * $CF1
 $Cd_max = 10 * $CF1
 
+# Convert CF1, CF2 to uF and LF to uH for display
+$CF1_uF = $CF1 * 1e6
+$CF2_uF = $CF2 * 1e6
+$LF_uH = $LF * 1e6
+
 
 
 Write-Result "###################### FILTER CALCULATIONS ######################" "Cyan"
 Write-Result "" "None"
-Write-Result "Corner frequency (fc): $fc Hz   'fC = 1 / (2 * pi * sqrt(Lf * Cf2)) ' " "Green" 
-Write-Result "CF2: $CF2 F" "Blue"
-Write-Result "LF: $LF H" "Blue"
-
+Write-Result ("    - Corner frequency (fc):`t{0:N2} Hz`t[= 1 / (2 * pi * sqrt(LF * CF2))]" -f $fc) "Green"
+Write-Result ("    - CF2:`t`t`t{0:N2} uF`t[= user input]" -f $CF2_uF) "Blue"
+Write-Result ("    - LF:`t`t`t{0:N2} uH`t[= user input]" -f $LF_uH) "Blue"
 Write-Result "" "None"
-Write-Result "Effective input current Iin: $Iin Amp   'Iin = (Vout * Iout) / (Vin * eta)'" "Green" 
-Add-Content -Path FILTER_Results.txt -Value ("Effective input current Iin: {0} A   [Iin = (Vout * Iout) / (Vin * eta)]" -f $Iin)
-Add-Content -Path FILTER_Results.txt -Value "# Iin is the average current drawn from the supply, accounting for efficiency."
-Write-Result "Vin: $Vin V" "Blue"
-Write-Result "Vout: $Vout V" "Blue"
-Write-Result "Iout: $Iout Amp" "Blue"
-Write-Result "eta 'efficiency': $eta" "Blue"
-
+Write-Result ("    - Effective input current (Iin):`t{0:N3} A`t[= (Vout * Iout) / (Vin * eta)]" -f $Iin) "Green"
+Write-Result ("    - Vin:`t`t`t{0:N2} V" -f $Vin) "Blue"
+Write-Result ("    - Vout:`t`t`t{0:N2} V" -f $Vout) "Blue"
+Write-Result ("    - Iout:`t`t`t{0:N2} A" -f $Iout) "Blue"
+Write-Result ("    - eta:`t`t`t{0:N2}" -f $eta) "Blue"
 Write-Result "" "None"
-Write-Result "Filter capacitor CF2: $CF2 F 'CF2 = 1 / (2 * pi * 0.1 * Fsw)^2 * LF' " "Green"
-Add-Content -Path FILTER_Results.txt -Value ("Filter capacitor CF2: {0} F   [CF2 = 1 / (2 * pi * 0.1 * Fsw)^2 * LF]" -f $CF2)
-Add-Content -Path FILTER_Results.txt -Value "# CF2 is calculated for optimal filter performance at 1/10th the switching frequency."
-Write-Result "Fsw: $Fsw Hz" "Blue"
-
+Write-Result ("    - Filter capacitor CF2:`t{0:N2} uF`t[= 1 / (2 * pi * 0.1 * Fsw)^2 * LF]" -f $CF2_uF) "Green"
+Write-Result ("    - Fsw:`t`t`t{0:N0} Hz" -f $Fsw) "Blue"
 Write-Result "" "None"
-Write-Result "dIin: $deltaIin Amps  ' dIin = Iin / (8 * fSW * Lf) '" "Green"
-Add-Content -Path FILTER_Results.txt -Value ("Input current ripple dIin: {0} A   [dIin = Iin / (8 * fSW * Lf)]" -f $deltaIin)
-Add-Content -Path FILTER_Results.txt -Value "# dIin is the ripple current at the filter input."
-Write-Result "Iin: $Iin Amps" "Blue"
-Write-Result "fSW: $Fsw Hz" "Blue"
-Write-Result "LF: $LF H" "Blue"
-
+Write-Result ("    - Input current ripple (dIin):`t{0:N4} A`t[= Iin / (8 * Fsw * LF)]" -f $deltaIin) "Green"
+Write-Result ("    - Iin:`t`t`t{0:N3} A" -f $Iin) "Blue"
+Write-Result ("    - Fsw:`t`t`t{0:N0} Hz" -f $Fsw) "Blue"
+Write-Result ("    - LF:`t`t`t{0:N2} uH" -f $LF_uH) "Blue"
 Write-Result "" "None"
 if ($Qf -eq 1) {
-    Write-Result "Rd: $Rd Ohm 'Rd  = sqrt(CF1 / LF)'" "Yellow"
+    Write-Result ("    - Rd:`t`t`t{0:N2} Ohm`t[= sqrt(CF1 / LF)]" -f $Rd) "Yellow"
+} else {
+    Write-Result ("    - Q factor:`t`t{0:N2}`t[= Rd * sqrt(CF1 / LF)]" -f $Qf) "Green"
 }
-else {
-    Write-Result "Q: $Qf Ohm 'Q = Rd *sqrt(CF1 / LF)'" "Green"
-}
-Write-Result "CF1: $CF1 F" "Blue"
-Write-Result "LF: $LF H" "Blue"
-
+Write-Result ("    - CF1:`t`t`t{0:N2} uF" -f $CF1_uF) "Blue"
+Write-Result ("    - LF:`t`t`t{0:N2} uH" -f $LF_uH) "Blue"
 Write-Result "" "None"
-Write-Result ("ZOut: ( {0} + {1}j ) Ohm  'ZOutF = (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))'" -f $ZOut.Real, $ZOut.Imaginary) "Magenta"
-Add-Content -Path FILTER_Results.txt -Value ("ZOut: ( {0} + {1}j ) Ohm   [ZOutF = (j*2π*f*Lf) / (1 - (Lf*Cf1*(2π*f)^2) + j·(2π*f*Rd*Cf1))]" -f $ZOut.Real, $ZOut.Imaginary)
-Add-Content -Path FILTER_Results.txt -Value "# ZOutF is the complex output impedance of the filter at the switching frequency."
-Write-Result "LF: $LF H" "Blue"
-Write-Result "CF1: $CF1 F" "Blue"
-Write-Result "Rd: $Rd Ohm" "Blue"
-Write-Result "Omega: $omega" "Blue"
+Write-Result ("    - ZOut (rect): ( {0:N6} + {1:N6}j ) Ohm`t[= (j*2pi*f*Lf) / (1 - (Lf*Cf1*(2pi*f)^2) + j*(2pi*f*Rd*Cf1))]" -f $ZOut.Real, $ZOut.Imaginary) "Magenta"
+Write-Result ("    - ZOut (polar): {0:N6} | {1:N2} deg`t[polar: |Z|, angle in degrees]" -f $ZOut_Mag, $ZOut_Phase) "Magenta"
+Write-Result ("    - ZOut (magnitude only): {0:N6} Ohm" -f $ZOut_Mag) "Magenta"
+Write-Result ("    - LF:`t`t`t{0:N2} uH" -f $LF_uH) "Blue"
+Write-Result ("    - CF1:`t`t`t{0:N2} uF" -f $CF1_uF) "Blue"
+Write-Result ("    - Rd:`t`t`t{0:N2} Ohm" -f $Rd) "Blue"
+Write-Result ("    - Omega:`t`t{0:N2}" -f $omega) "Blue"
 Write-Result "Fsw: $Fsw Hz" "Blue"
 if ($null -ne $numerator) { Write-Result "Numerator: $($numerator.ToString())" "Blue" } else { Write-Result "Numerator: null" "Red" }
 if ($null -ne $denominator) { Write-Result "Denominator: $($denominator.ToString())" "Blue" } else { Write-Result "Denominator: null" "Red" }
@@ -256,3 +261,22 @@ Write-Result "Cd_max: $Cd_max F" "Blue"
 # ending printout
 Write-Result "" "None"
 Write-Result "#################################################################" "Cyan"
+Write-Result "  Filter Component Values (for reference):" "Cyan"
+Write-Result "    - CF1: $CF1_uF uF" "Cyan"
+Write-Result "    - CF2: $CF2_uF uF" "Cyan"
+Write-Result "    - LF: $LF_uH uH" "Cyan"
+Write-Result ("    - Rd: {0:N2} Ohm" -f $Rd) "Cyan"
+Write-Result "    - Cd: $Cd_uF uF" "Cyan"
+
+Write-Result "  Input Filter Values:" "Yellow"
+Write-Result "    - CF1: $CF1_uF uF`t[= user input]" "Yellow"
+Write-Result "    - CF2: $CF2_uF uF`t[= user input]" "Yellow"
+Write-Result "    - LF: $LF_uH uH`t[= user input]" "Yellow"
+Write-Result ("    - Rd: {0:N2} Ohm`t[= sqrt(CF1 / LF)]" -f $Rd) "Yellow"
+Write-Result "    - Cd: $Cd_uF uF`t[= 5 * CF1]" "Yellow"
+
+Write-Result "  FILTER CALCULATIONS:" "Cyan"
+Write-Result ("    - Corner frequency (fc):`t{0} Hz`t[= 1 / (2 * pi * sqrt(LF * CF2))]" -f $fc) "Green"
+Write-Result ("    - Effective input current (Iin):`t{0} A`t[= (Vout * Iout) / (Vin * eta)]" -f $Iin) "Green"
+Write-Result ("    - Input current ripple (dIin):`t{0} A`t[= Iin / (8 * Fsw * LF)]" -f $deltaIin) "Green"
+Write-Result ("    - Q factor:`t{0}`t[= Rd * sqrt(CF1 / LF)]" -f $Qf) "Green"
