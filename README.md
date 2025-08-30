@@ -206,15 +206,13 @@ All results and calculation breakdowns will be shown in the console and saved to
 - If output is misaligned, check your PowerShell font or output file encoding.
 
 ## Parameters
-- `inputVoltage` (V): Input voltage to the converter
-- `outputVoltage` (V): Desired output voltage
-- `loadCurrent` (A): Maximum load current
-- `inputRippleVoltage` (V): Allowed input voltage ripple (default: 0.12V)
+- `Vin` (V): Input voltage to the converter
+- `Vout` (V): Desired output voltage
+- `Iout` (A): Maximum load current
+- `Vin_ripple` (V): Allowed input voltage ripple (default: 0.12V)
+- `CF1` (F): Input filter capacitor value (Choose X7R low esr)
 - `NC`: Number of output capacitors in parallel (default: 1)
-- `CoutDerating`: Output capacitor derating factor (default: 1.25)
-- `OutputFile`: Output file name (default: TPS5450_Results.txt)
-- `LF` (H): Input filter inductor value
-- `CF1` (F): Input filter capacitor value
+- `ESRmax_cf1` : ESR of capacitor for CF1 chosen from datasheet of CF1
 - `Cd` (F): Damping capacitor value
 - `F_LC` (Hz): Input filter corner frequency (optional)
 - `Q`: Input filter quality factor (optional)

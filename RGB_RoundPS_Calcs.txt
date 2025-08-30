@@ -1,10 +1,11 @@
 TPS5450 Design Calculations Results
+####################################################################
+
+####################################################################
 ###################### TPS5450 Design Summary ######################
   Input Voltage: 24 V
   Output Voltage: 5 V
   Load Current: 5 A
-
-####################################################################
   Feedback Resistors:
     - R1: 10000 ohms (fixed)
     - R2: 3231 ohms
@@ -12,17 +13,16 @@ TPS5450 Design Calculations Results
     - Ripple Voltage (Capacitive):	0.164930555555556 V	[= (Iout * D * (1 - D)) / (CF1 * Fsw)]
     - Ripple Voltage (ESR):      	0.00166666666666667 V	[= Iout * D * ESRmax_cf1]
     - Ripple Voltage (Total):    	0.166597222222222 V	[= Ripple_C + Ripple_ESR]
-    - Average Current @ 5A:		1.27032520325203 A	[= (Iout * Vout) / (Vin * efficiency)]
+    - Average Current @ 5A:	1.27032520325203 A	[= (Iout * Vout) / (Vin * efficiency)]
     - Cap RMS Current:           	2.03058215516853 A	[= Iout * sqrt(D * (1 - D))]
   Inductor:
-    - Min value:                 	7.91666666666667 uH	(choose standard value or higher) [= (Vout*(Vin-out)) 														/ (Vin * Kind * Iout * Fsw)]
-    - RMS Current:               	5.00832640043891 A	[= sqrt(Iout^2 + (1/12) * ((Vout * (Vin - Vout)) 
-														/ (Vin * L_min * Fsw))^2)]
+    - Min value:                 	7.91666666666667 uH	(choose standard value or higher) [= (Vout * (Vin - Vout)) / (Vin * Kind * Iout * Fsw)]
+    - RMS Current:               	5.00832640043891 A	[= sqrt(Iout^2 + (1/12) * ((Vout * (Vin - Vout)) / (Vin * L_min * Fsw))^2)]
     - Peak Current:              	5.625 A	[= Iout + ((Vout * (Vin - Vout)) / (1.6 * Vin * L_min * Fsw))]
   Output Capacitor:
     - Corner Frequency:          	2258.7669650298 Hz	[= 1 / (2 * pi * sqrt(L_min * Cout))]
     - Crossover Frequency:       	12000 Hz	[set by user or default]
-    - Total:                     	627.126350281423 uF	(choose low ESR type) [= 1 / (3357*L_min*Fco *Vout)]
+    - Total:                     	627.126350281423 uF	(choose low ESR type) [= 1 / (3357 * L_min * Fco * Vout)]
     - Individual:                	209.042116760474 uF	(each capacitor using NC) [= Cout / NC]
     - Max ESR (total bank):      	0.0132629119243246 mOhm	[= 1 / (2 * pi * Fco)]
     - Max ESR (per cap):         	0.0397887357729738 mOhm	[= ESRmax_total * NC]
@@ -30,6 +30,10 @@ TPS5450 Design Calculations Results
   Input Filter Capacitor:
     - CF1: 1E-05 uF
     - ESR: 0.0016 Ohm
+  Output Ripple Voltage (Datasheet):
+    - Capacitive:   	3.9864E-004 V	[= ΔIL / (8 * Fsw * Cout)]
+    - ESR:          	1.3263E-005 V	[= ΔIL * ESR]
+    - Total:        	4.1191E-004 V	[= Capacitive + ESR]
   Practical Output Cap Example (WEBENCH):
     - Total: 660 uF (6TPE220MAZB)
     - ESR: 18 mOhm (datasheet)
@@ -83,6 +87,7 @@ Cd_min: 5E-05 F
 Cd_max: 0.0001 F
 
 #################################################################
+######################Filter Summary############################
   Filter Component Values (for reference):
     - CF1: 10 uF
     - CF2: 10 uF
@@ -100,3 +105,7 @@ Cd_max: 0.0001 F
     - Effective input current (Iin):	1.27032520325203 A	[= (Vout * Iout) / (Vin * eta)]
     - Input current ripple (dIin):	0.0401155327342747 A	[= Iin / (8 * Fsw * LF)]
     - Q factor:	1	[= Rd * sqrt(CF1 / LF)]
+    - ZOut (magnitude only): 0.0318392037638307 Ohm	[= (j*2pi*f*Lf) / (1 - (Lf*Cf1*(2pi*f)^2) + j*(2pi*f*Rd*Cf1))]
+    - ZOut (phase): -87.4092870860997 deg	[= atan2(ZOut.Imaginary, ZOut.Real) * 180 / pi]
+    - ZOut (rect): ( 0.00143916589226822 + -0.0318066612181987j ) Ohm	[= (j*2pi*f*Lf) / (1 - (Lf*Cf1*(2pi*f)^2) + j*(2pi*f*Rd*Cf1))]
+##################################################################

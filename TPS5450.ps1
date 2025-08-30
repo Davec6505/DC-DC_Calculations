@@ -156,8 +156,19 @@ $ESRmax_individual = $ESRmax_total * $NC
 $ESRmax_total_mOhm = $ESRmax_total * 1e3
 $ESRmax_individual_mOhm = $ESRmax_individual * 1e3
 
-# 11. Calculate Output Ripple Voltage
-#$rippleV = ($ESRmax * $Vout * ($Vin_max - $Vout)) / ($NC * $Vin_max * $Lout * $Fsw)
+# 11. Calculate Output Ripple Voltage (Datasheet Formula)
+# Inductor ripple current
+$deltaIL = ($Vin - $Vout) * $Vout / ($Vin * $L_min * $Fsw)
+# Output cap (total)
+$Cout_total = $Cout
+# ESR (total bank)
+$ESR_total = $ESRmax_total
+# Capacitive ripple
+$rippleV_C = $deltaIL / (8 * $Fsw * $Cout_total)
+# ESR ripple
+$rippleV_ESR = $deltaIL * $ESR_total
+# Total output ripple
+$rippleV_total = $rippleV_C + $rippleV_ESR
 
 # 12. Calculate Output Capacitor RMS Ripple Current
 #$Icout_rms = 1 / [math]::Sqrt(12) * (($Vout * ($Vin_max - $Vout)) / ($Vin_max * $Lout * $Fsw * $NC))
@@ -200,6 +211,10 @@ Write-Result "  Input Filter Capacitor:" "Yellow"
 Write-Result "    - CF1: $CF1 uF" "Yellow"
 Write-Result "    - ESR: $ESRmax_cf1 Ohm" "Yellow"
 
+Write-Result "  Output Ripple Voltage (Datasheet):" "Yellow"
+Write-Result ("    - Capacitive:   `t{0:E4} V`t[= ΔIL / (8 * Fsw * Cout)]" -f $rippleV_C) "Yellow"
+Write-Result ("    - ESR:          `t{0:E4} V`t[= ΔIL * ESR]" -f $rippleV_ESR) "Yellow"
+Write-Result ("    - Total:        `t{0:E4} V`t[= Capacitive + ESR]" -f $rippleV_total) "Yellow"
 
 # --- Practical/WEBENCH Output Capacitance Example (6TPE220MAZB) ---
 $Cout_practical = 220e-6 * $NC # 220uF
